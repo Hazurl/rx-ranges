@@ -405,6 +405,41 @@ TEST_CASE("ranges group_adjacent_by") {
     CHECK(group_vectors[3] == std::vector{1, 9}); // note: initializer list brokenness abound
 }
 
+TEST_CASE("ranges windowed") {
+    auto actual = seq() | take(3) | windowed(3) | to_vector();
+    auto expected = std::vector{{std::forward_list<int>{{0,1,2}}}};
+    CHECK(actual == expected);
+
+    actual = seq() | take(5) | windowed(3) | to_vector();
+    expected = std::vector{{
+        std::forward_list<int>{{0,1,2}},
+        std::forward_list<int>{{1,2,3}},
+        std::forward_list<int>{{2,3,4}}}};
+    CHECK(actual == expected);
+
+    actual = seq() | take(5) | windowed(3, 2) | to_vector();
+    expected = std::vector{{
+        std::forward_list<int>{{0,1,2}},
+        std::forward_list<int>{{2,3,4}}}};
+    CHECK(actual == expected);
+
+    actual = seq() | take(5) | windowed(3, 3) | to_vector();
+    expected = std::vector{{
+        std::forward_list<int>{{0,1,2}},
+        std::forward_list<int>{{3,4}}}};
+    CHECK(actual == expected);
+
+    actual = seq() | take(5) | windowed(3, 4) | to_vector();
+    expected = std::vector{{
+        std::forward_list<int>{{0,1,2}},
+        std::forward_list<int>{{4}}}};
+    CHECK(actual == expected);
+
+    actual = seq() | take(5) | windowed(3, 5) | to_vector();
+    expected = std::vector{{std::forward_list<int>{{0,1,2}}}};
+    CHECK(actual == expected);
+}
+
 /*
 TEST_CASE("ranges append to non-container [no compile]") {
     double not_a_container = 0;

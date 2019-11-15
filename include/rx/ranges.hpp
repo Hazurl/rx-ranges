@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <forward_list>
 #include <list>
 #include <map>
 #include <set>
@@ -1652,6 +1653,107 @@ struct reverse {
     [[nodiscard]] constexpr auto operator()(InputRange&& input) const noexcept {
         using Inner = RX_REMOVE_CVREF_T<InputRange>;
         return Range<Inner>{std::forward<InputRange>(input)};
+    }
+};
+
+/// Sliding window over an input range.
+///
+/// E.g. for a range `(1,2,3,4,5)` a window of 2 elements is `[(1,2), (2,3), (3,4), (5)]`.
+/// For a range `(1,2,3,4,5,6)` a window of 2 elements with a stepsize of 3 is `[(1,2), (4,5)]`.
+///
+/// Inspired by [more_itertools.windowed()](https://more-itertools.readthedocs.io/en/v7.2.0/api.html#more_itertools.windowed).
+struct windowed {
+    size_t window_size_ = 1;
+    size_t step_size_ = 1;
+
+    explicit constexpr windowed(size_t window_size, size_t step_size = 1) noexcept
+        : window_size_(window_size), step_size_(step_size) {
+        RX_ASSERT(window_size > 0);
+        RX_ASSERT(step_size > 0);
+    }
+    constexpr windowed(const windowed&);
+    constexpr windowed(windowed&&);
+    constexpr windowed &operator =(const windowed&);
+    constexpr windowed &operator =(windowed&&);
+
+    template <class InputRange>
+    struct Range {
+        using T = RX_REMOVE_CVREF_T<get_output_type_of_t<InputRange>>;
+        using Buffer = std::forward_list<T>;
+        using output_type = const Buffer&;
+        static constexpr bool is_finite = InputRange::is_finite;
+
+        InputRange input_;
+        Buffer buffer_;
+        typename Buffer::iterator last_elem_;
+        size_t window_size_;
+        size_t step_size_;
+
+        void _fill_initial() {
+            buffer_.emplace_front(input_.get());
+            last_elem_ = buffer_.begin();
+            input_.next();
+
+            for (size_t i = 1; i < window_size_ && !input_.at_end(); ++i, input_.next()) {
+                last_elem_ = buffer_.emplace_after(last_elem_, input_.get());
+            }
+        }
+
+        Range(size_t window_size, size_t step_size, InputRange input)
+            : input_(std::move(input)), window_size_(window_size), step_size_(step_size) {
+            if (input_.at_end()) {
+                return;
+            }
+
+            _fill_initial();
+        }
+        [[nodiscard]] constexpr output_type get() const& noexcept {
+            return buffer_;
+        }
+        [[nodiscard]] constexpr Buffer get() && noexcept {
+            return std::move(buffer_);
+        }
+        void next() {
+            if (input_.at_end()) {
+                buffer_.clear();
+                return;
+            }
+
+            if (step_size_ < window_size_) {
+                for (size_t i = step_size_; i > 0; --i) {
+                    buffer_.pop_front();
+
+                    last_elem_ = buffer_.emplace_after(last_elem_, input_.get());
+                    input_.next();
+                    if (input_.at_end()) {
+                        break;
+                    }
+                }
+            } else {
+                buffer_.clear();
+                for (size_t i = step_size_ - window_size_; i > 0; --i) {
+                    input_.next();
+                    if (input_.at_end()) {
+                        return;
+                    }
+                }
+                _fill_initial();
+            }
+        }
+        [[nodiscard]] constexpr bool at_end() const noexcept {
+            return buffer_.empty();
+        }
+        [[nodiscard]] constexpr size_t size_hint() const noexcept {
+            size_t hint = input_.size_hint();
+            return std::max(hint + window_size_ - 1, hint) / window_size_;
+        }
+    };
+
+    template <class InputRange>
+    [[nodiscard]] auto operator()(InputRange&& input) const {
+        using Inner = RX_REMOVE_CVREF_T<decltype(as_input_range(std::forward<InputRange>(input)))>;
+        return Range<Inner>{
+            window_size_, step_size_, as_input_range(std::forward<InputRange>(input))};
     }
 };
 
