@@ -432,7 +432,7 @@ TEST_CASE("ranges windowed") {
     actual = seq() | take(5) | windowed(3, 4) | to_vector();
     expected = std::vector{{
         std::forward_list<int>{{0,1,2}},
-        std::forward_list<int>{{4}}}};
+        std::forward_list<int>(1, 4)}};
     CHECK(actual == expected);
 
     actual = seq() | take(5) | windowed(3, 5) | to_vector();

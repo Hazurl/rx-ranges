@@ -1671,10 +1671,10 @@ struct windowed {
         RX_ASSERT(window_size > 0);
         RX_ASSERT(step_size > 0);
     }
-    constexpr windowed(const windowed&);
-    constexpr windowed(windowed&&);
-    constexpr windowed &operator =(const windowed&);
-    constexpr windowed &operator =(windowed&&);
+    constexpr windowed(const windowed&) noexcept = default;
+    constexpr windowed(windowed&&) noexcept = default;
+    constexpr windowed &operator =(const windowed&) noexcept = default;
+    constexpr windowed &operator =(windowed&&) noexcept = default;
 
     template <class InputRange>
     struct Range {
