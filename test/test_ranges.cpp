@@ -406,37 +406,40 @@ TEST_CASE("ranges group_adjacent_by") {
 }
 
 TEST_CASE("ranges windowed") {
-    auto actual = seq() | take(3) | windowed(3) | to_vector();
-    auto expected = std::vector{{std::forward_list<int>{{0,1,2}}}};
+    auto actual = seq() | take(3) | windowed(3) | transform(to_vector()) | to_vector();
+    auto expected = std::vector{{std::vector<int>{{0,1,2}}, std::vector<int>{{1,2}}, std::vector<int>{{2}}}};
     CHECK(actual == expected);
 
-    actual = seq() | take(5) | windowed(3) | to_vector();
+    actual = seq() | take(5) | windowed(3) | transform(to_vector()) | to_vector();
     expected = std::vector{{
-        std::forward_list<int>{{0,1,2}},
-        std::forward_list<int>{{1,2,3}},
-        std::forward_list<int>{{2,3,4}}}};
+        std::vector<int>{{0,1,2}},
+        std::vector<int>{{1,2,3}},
+        std::vector<int>{{2,3,4}},
+        std::vector<int>{{3,4}},
+        std::vector<int>{{4}}}};
     CHECK(actual == expected);
 
-    actual = seq() | take(5) | windowed(3, 2) | to_vector();
+    actual = seq() | take(5) | windowed(3, 2) | transform(to_vector()) | to_vector();
     expected = std::vector{{
-        std::forward_list<int>{{0,1,2}},
-        std::forward_list<int>{{2,3,4}}}};
+        std::vector<int>{{0,1,2}},
+        std::vector<int>{{2,3,4}},
+        std::vector<int>{{4}}}};
     CHECK(actual == expected);
 
-    actual = seq() | take(5) | windowed(3, 3) | to_vector();
+    actual = seq() | take(5) | windowed(3, 3) | transform(to_vector()) | to_vector();
     expected = std::vector{{
-        std::forward_list<int>{{0,1,2}},
-        std::forward_list<int>{{3,4}}}};
+        std::vector<int>{{0,1,2}},
+        std::vector<int>{{3,4}}}};
     CHECK(actual == expected);
 
-    actual = seq() | take(5) | windowed(3, 4) | to_vector();
+    actual = seq() | take(5) | windowed(3, 4) | transform(to_vector()) | to_vector();
     expected = std::vector{{
-        std::forward_list<int>{{0,1,2}},
-        std::forward_list<int>(1, 4)}};
+        std::vector<int>{{0,1,2}},
+        std::vector<int>(1, 4)}};
     CHECK(actual == expected);
 
-    actual = seq() | take(5) | windowed(3, 5) | to_vector();
-    expected = std::vector{{std::forward_list<int>{{0,1,2}}}};
+    actual = seq() | take(5) | windowed(3, 5) | transform(to_vector()) | to_vector();
+    expected = std::vector{{std::vector<int>{{0,1,2}}}};
     CHECK(actual == expected);
 }
 

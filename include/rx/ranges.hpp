@@ -1671,77 +1671,33 @@ struct windowed {
         RX_ASSERT(window_size > 0);
         RX_ASSERT(step_size > 0);
     }
-    constexpr windowed(const windowed&) noexcept = default;
-    constexpr windowed(windowed&&) noexcept = default;
-    constexpr windowed &operator =(const windowed&) noexcept = default;
-    constexpr windowed &operator =(windowed&&) noexcept = default;
 
     template <class InputRange>
     struct Range {
         using T = RX_REMOVE_CVREF_T<get_output_type_of_t<InputRange>>;
-        using Buffer = std::forward_list<T>;
-        using output_type = const Buffer&;
+        using output_type = decltype(std::declval<InputRange>() | take(1));
         static constexpr bool is_finite = InputRange::is_finite;
 
         InputRange input_;
-        Buffer buffer_;
-        typename Buffer::iterator last_elem_;
         size_t window_size_;
         size_t step_size_;
 
-        void _fill_initial() {
-            buffer_.emplace_front(input_.get());
-            last_elem_ = buffer_.begin();
-            input_.next();
-
-            for (size_t i = 1; i < window_size_ && !input_.at_end(); ++i, input_.next()) {
-                last_elem_ = buffer_.emplace_after(last_elem_, input_.get());
-            }
-        }
-
         Range(size_t window_size, size_t step_size, InputRange input)
-            : input_(std::move(input)), window_size_(window_size), step_size_(step_size) {
-            if (input_.at_end()) {
-                return;
-            }
+            : input_(std::move(input)), window_size_(window_size), step_size_(step_size) {}
 
-            _fill_initial();
-        }
         [[nodiscard]] constexpr output_type get() const& noexcept {
-            return buffer_;
+            return input_ | take(window_size_);
         }
-        [[nodiscard]] constexpr Buffer get() && noexcept {
-            return std::move(buffer_);
+        [[nodiscard]] constexpr auto get() && noexcept {
+            return std::move(input_) | take(window_size_);
         }
         void next() {
-            if (input_.at_end()) {
-                buffer_.clear();
-                return;
-            }
-
-            if (step_size_ < window_size_) {
-                for (size_t i = step_size_; i > 0; --i) {
-                    buffer_.pop_front();
-
-                    last_elem_ = buffer_.emplace_after(last_elem_, input_.get());
-                    input_.next();
-                    if (input_.at_end()) {
-                        break;
-                    }
-                }
-            } else {
-                buffer_.clear();
-                for (size_t i = step_size_ - window_size_; i > 0; --i) {
-                    input_.next();
-                    if (input_.at_end()) {
-                        return;
-                    }
-                }
-                _fill_initial();
+            for(std::size_t i{ 0 }; i < step_size_ && !input_.at_end(); ++i) {
+                input_.next();
             }
         }
         [[nodiscard]] constexpr bool at_end() const noexcept {
-            return buffer_.empty();
+            return input_.at_end();
         }
         [[nodiscard]] constexpr size_t size_hint() const noexcept {
             size_t hint = input_.size_hint();
