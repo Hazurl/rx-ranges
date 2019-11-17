@@ -469,6 +469,41 @@ TEST_CASE("ranges non-default-constructible, non-copyable predicate") {
     }
 }
 
+TEST_CASE("ranges windowed") {
+    auto actual = seq() | take(3) | windowed(3) | to_vector();
+    auto expected = std::vector{{std::deque<int>{{0,1,2}}}};
+    CHECK(actual == expected);
+
+    actual = seq() | take(5) | windowed(3) | to_vector();
+    expected = std::vector{{
+        std::deque<int>{{0,1,2}},
+        std::deque<int>{{1,2,3}},
+        std::deque<int>{{2,3,4}}}};
+    CHECK(actual == expected);
+
+    actual = seq() | take(5) | windowed(3, 2) | to_vector();
+    expected = std::vector{{
+        std::deque<int>{{0,1,2}},
+        std::deque<int>{{2,3,4}}}};
+    CHECK(actual == expected);
+
+    actual = seq() | take(5) | windowed(3, 3) | to_vector();
+    expected = std::vector{{
+        std::deque<int>{{0,1,2}},
+        std::deque<int>{{3,4}}}};
+    CHECK(actual == expected);
+
+    actual = seq() | take(5) | windowed(3, 4) | to_vector();
+    expected = std::vector{{
+        std::deque<int>{{0,1,2}},
+        std::deque<int>(1, 4)}};
+    CHECK(actual == expected);
+
+    actual = seq() | take(5) | windowed(3, 5) | to_vector();
+    expected = std::vector{{std::deque<int>{{0,1,2}}}};
+    CHECK(actual == expected);
+}
+
 /*
 TEST_CASE("ranges append to non-container [no compile]") {
     double not_a_container = 0;

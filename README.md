@@ -96,6 +96,7 @@ following observations:
   storage, unless used as input for further algorithms.
 - `uniq()`: Reduce the output by consecutive equality with `std::unique()`. Does not allocate
   temporary storage, unless used as input for further algorithms.
+- `windowed(n, step=1)`: Sliding window of width `n` over an input range.
 
 ## TODO
 
