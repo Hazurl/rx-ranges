@@ -2523,6 +2523,10 @@ struct null_sink {
 /// E.g. for a range `(1,2,3,4,5)` a window of 2 elements is `[(1,2), (2,3), (3,4), (5)]`.
 /// For a range `(1,2,3,4,5,6)` a window of 2 elements with a stepsize of 3 is `[(1,2), (4,5)]`.
 ///
+/// If the size of the step is strictly superior to the  size of the window, some elements will
+/// be ignored. If you have a `transform` before that perform some side-effect, not all elements
+/// of the input range will be transformed.
+///
 /// Inspired by [more_itertools.windowed()](https://more-itertools.readthedocs.io/en/v7.2.0/api.html#more_itertools.windowed).
 struct windowed {
     const size_t n = 1;
@@ -2537,45 +2541,49 @@ struct windowed {
     template <class R>
     struct Range {
         using element_type = remove_cvref_t<get_output_type_of_t<R>>;
-        using output_type = std::deque<element_type>;
+        using storage_type = std::vector<element_type>;
+        using output_type = decltype(std::declval<storage_type>() | cycle() | skip_n(size_t{}) | take(size_t{}));
         static constexpr bool is_finite = is_finite_v<R>;
-        static constexpr bool is_idempotent = true; // the have our own buffer
+        static constexpr bool is_idempotent = true; // all elements stored
 
         R input;
-        output_type storage;
+        storage_type storage;
         size_t n;
         const size_t stepsize;
+        size_t start;
 
         template <class Rx>
-        constexpr Range(Rx &&input_, size_t n, size_t stepsize) : input(std::forward<Rx>(input_)), n(n), stepsize(stepsize) {
+        constexpr Range(Rx &&input_, size_t n, size_t stepsize) : input(std::forward<Rx>(input_)), n(n), stepsize(stepsize), start(0) {
             if (RX_LIKELY(!input.at_end())) {
+                storage.reserve(n);
                 _fill_empty_storage();
             }
         }
 
-        [[nodiscard]] constexpr const output_type& get() const& noexcept {
-            return storage;
-        }
-
-        [[nodiscard]] constexpr output_type get() && noexcept {
-            return std::move(storage);
+        [[nodiscard]] constexpr output_type get() const noexcept {
+            return storage | cycle() | skip_n(start) | take(n);
         }
 
         void next() {
-            if (RX_UNLIKELY(input.at_end())) {
+            RX_ASSERT(!at_end());
+
+            if(RX_UNLIKELY(input.at_end())) {
                 storage.clear();
                 return;
             }
 
             if (stepsize < n) {
                 for (size_t i = stepsize; i > 0; --i) {
-                    storage.pop_front();
-                    storage.emplace_back(input.get());
-
+                    storage[start] = input.get();
+                   
                     input.next();
                     if (RX_UNLIKELY(input.at_end())) {
+                        start = (start + i) % n;
+                        n -= i - 1; // window is incomplete
                         break;
                     }
+
+                    start = (start + 1) % n;
                 }
             } else {
                 storage.clear();
@@ -2590,25 +2598,27 @@ struct windowed {
         }
 
         [[nodiscard]] constexpr bool at_end() const noexcept {
-            return storage.empty();
+            return input.at_end() && storage.empty();
         }
 
         [[nodiscard]] constexpr size_t size_hint() const noexcept {
-            if constexpr (is_finite) {
-                size_t hint = input.size_hint();
-                return std::max(hint + n - 1, hint) / n;
-            } else {
-                return std::numeric_limits<size_t>::max();
+            size_t hint = input.size_hint();
+            if (hint + (n - 1) > hint) {
+                return std::max(hint + (n - 1), hint) / n;
             }
+            return std::numeric_limits<size_t>::max();
         }
 
     private:
         void _fill_empty_storage() {
-            storage.emplace_front(input.get());
-            input.next();
-
-            for (size_t i = 1; i < n && RX_LIKELY(!input.at_end()); ++i, input.next()) {
+            for (size_t i = 0; i < n; ++i) {
                 storage.emplace_back(input.get());
+                input.next();
+
+                if (RX_UNLIKELY(input.at_end())) {
+                    n = i + 1;
+                    break;
+                }
             }
         }
     };
