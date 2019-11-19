@@ -804,40 +804,51 @@ TEST_CASE("ranges doc examples test") {
 }
 
 TEST_CASE("ranges windowed") {
-    auto actual = seq() | take(3) | windowed(3) | to_vector();
-    auto expected = std::vector{{std::deque<int>{{0,1,2}}}};
+    auto actual = seq() | take(3) | windowed(3) | transform(to_vector()) | to_vector();
+    auto expected = std::vector{{std::vector<int>{{0,1,2}}}};
     CHECK(actual == expected);
 
-    actual = seq() | take(5) | windowed(3) | to_vector();
+    actual = seq() | take(5) | windowed(3) | transform(to_vector()) | to_vector();
     expected = std::vector{{
-        std::deque<int>{{0,1,2}},
-        std::deque<int>{{1,2,3}},
-        std::deque<int>{{2,3,4}}}};
+        std::vector<int>{{0,1,2}},
+        std::vector<int>{{1,2,3}},
+        std::vector<int>{{2,3,4}}}};
     CHECK(actual == expected);
 
-    actual = seq() | take(5) | windowed(3, 2) | to_vector();
+    actual = seq() | take(5) | windowed(3, 2) | transform(to_vector()) | to_vector();
     expected = std::vector{{
-        std::deque<int>{{0,1,2}},
-        std::deque<int>{{2,3,4}}}};
+        std::vector<int>{{0,1,2}},
+        std::vector<int>{{2,3,4}}}};
     CHECK(actual == expected);
 
-    actual = seq() | take(5) | windowed(3, 3) | to_vector();
+    actual = seq() | take(5) | windowed(3, 3) | transform(to_vector()) | to_vector();
     expected = std::vector{{
-        std::deque<int>{{0,1,2}},
-        std::deque<int>{{3,4}}}};
+        std::vector<int>{{0,1,2}},
+        std::vector<int>{{3,4}}}};
     CHECK(actual == expected);
 
-    actual = seq() | take(5) | windowed(3, 4) | to_vector();
+    actual = seq() | take(5) | windowed(3, 4) | transform(to_vector()) | to_vector();
     expected = std::vector{{
-        std::deque<int>{{0,1,2}},
-        std::deque<int>(1, 4)}};
+        std::vector<int>{{0,1,2}},
+        std::vector<int>(1, 4)}};
     CHECK(actual == expected);
 
-    actual = seq() | take(5) | windowed(3, 5) | to_vector();
-    expected = std::vector{{std::deque<int>{{0,1,2}}}};
+    actual = seq() | take(5) | windowed(3, 5) | transform(to_vector()) | to_vector();
+    expected = std::vector{{std::vector<int>{{0,1,2}}}};
     CHECK(actual == expected);
 }
 
+TEST_CASE("ranges windowed idempotent") {
+    auto const input = seq() | take(10) | to_vector();
+
+    int idempotent_guard{0};
+    input | transform([&idempotent_guard] (int i) { ++idempotent_guard; return i; }) | windowed(2) | append(null_sink());
+    CHECK(idempotent_guard == 10);
+
+    idempotent_guard = 0;
+    input | transform([&idempotent_guard] (int i) { ++idempotent_guard; return i; }) | windowed(3, 3) | append(null_sink());
+    CHECK(idempotent_guard == 10);
+}
 /*
 TEST_CASE("ranges append to non-container [no compile]") {
     double not_a_container = 0;
