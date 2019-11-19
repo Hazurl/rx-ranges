@@ -2560,7 +2560,7 @@ struct windowed {
             }
         }
 
-        [[nodiscard]] constexpr output_type get() const noexcept {
+       [[nodiscard]] constexpr output_type get() const noexcept {
             return storage | cycle() | skip_n(start) | take(n);
         }
 
